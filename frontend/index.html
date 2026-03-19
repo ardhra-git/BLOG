@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Daily Read</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-dot"></span>
+        Ardhra Blogs!
+      </div>
+      <nav>
+        <a href="#posts">Posts</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- HERO BANNER -->
+  <section class="hero-banner">
+    <p class="hero-eyebrow">Welcome to the blog</p>
+    <h1 class="hero-heading">Ideas worth<br /><em>reading about.</em></h1>
+    <p class="hero-sub">Stories, thoughts, and ideas — published fresh.</p>
+  </section>
+
+  <!-- POSTS SECTION -->
+  <main class="posts-section" id="posts">
+    <div class="posts-header">
+      <h2 class="section-title">All Posts</h2>
+      <span class="post-count" id="postCount">0 posts</span>
+    </div>
+    <div class="posts-grid" id="postsGrid">
+      <p class="state-msg">Loading...</p>
+    </div>
+  </main>
+
+  <!-- FLOATING ADD BUTTON -->
+  <button class="fab" id="fabBtn" onclick="openDrawer()" title="Write new post">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  </button>
+
+  <!-- SLIDE-IN DRAWER (CREATE / EDIT) -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-header">
+      <h3 class="drawer-title" id="drawerTitle">New Post</h3>
+      <button class="drawer-close" onclick="closeDrawer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div class="drawer-body">
+      <input type="hidden" id="editId" />
+      <div class="field">
+        <label>Category</label>
+        <input type="text" id="postTag" placeholder="e.g. Technology, Lifestyle…" />
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="postTitle" placeholder="Give your post a title…" />
+      </div>
+      <div class="field">
+        <label>Short Excerpt</label>
+        <input type="text" id="postExcerpt" placeholder="One sentence summary…" />
+      </div>
+      <div class="field">
+        <label>Full Content</label>
+        <textarea id="postBody" rows="8" placeholder="Write your post here…"></textarea>
+      </div>
+      <div class="field">
+        <label>Read Time</label>
+        <input type="text" id="postReadTime" placeholder="e.g. 3 min read" />
+      </div>
+      <p class="drawer-status" id="drawerStatus"></p>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn-save" onclick="savePost()">Publish Post</button>
+      <button class="btn-cancel" onclick="closeDrawer()">Cancel</button>
+    </div>
+  </aside>
+
+  <!-- READ MODAL -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <article class="modal-card" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      <div id="modalContent"></div>
+    </article>
+  </div>
+
+  <!-- DELETE CONFIRM DIALOG -->
+  <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-box">
+      <p class="confirm-msg">Delete this post? This cannot be undone.</p>
+      <div class="confirm-actions">
+        <button class="btn-confirm-del" id="confirmYes">Yes, Delete</button>
+        <button class="btn-confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTACT -->
+  <section class="contact-section" id="contact">
+    <div class="contact-inner">
+      <h2 class="contact-title">Say Hello</h2>
+      <p class="contact-sub">Got a story idea or just want to connect?</p>
+      <form id="contactForm">
+        <div class="field">
+          <label>Name</label>
+          <input type="text" id="cName" placeholder="Your name" required />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="cEmail" placeholder="your@email.com" required />
+        </div>
+        <div class="field">
+          <label>Message</label>
+          <textarea id="cMessage" rows="4" placeholder="What's on your mind?" required></textarea>
+        </div>
+        <button type="submit" class="btn-send">Send Message</button>
+        <p class="contact-status" id="contactStatus"></p>
+      </form>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <span>© 2025 The Daily Read</span>
+  </footer>
+
+  <script src="/static/main.js"></script>
+</body>
+
+</html>
