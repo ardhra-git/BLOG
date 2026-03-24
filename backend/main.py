@@ -1,6 +1,3 @@
-# backend/main.py
-# Run: python -m uvicorn main:app --reload
-# Open: http://localhost:8000
 
 from fastapi import FastAPI, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,16 +27,24 @@ def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 # ─── DATABASE CONFIG ───────────────────────────────────────────
-DB_CONFIG = {
-    "host":     "localhost",
-    "port":     5432,
-    "dbname":   "blog_db",
-    "user":     "postgres",
-    "password": "1234567",   # change if you set a different password
-}
+# Use DATABASE_URL for Render deployment, fallback to local for development
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-def get_db():
-    return psycopg2.connect(**DB_CONFIG)
+if DATABASE_URL:
+    # Render deployment - use connection string
+    def get_db():
+        return psycopg2.connect(DATABASE_URL)
+else:
+    # Local development
+    DB_CONFIG = {
+        "host":     "localhost",
+        "port":     5432,
+        "dbname":   "blog_db",
+        "user":     "postgres",
+        "password": "1234567",
+    }
+    def get_db():
+        return psycopg2.connect(**DB_CONFIG)
 
 def is_valid_email(email: str) -> bool:
     return bool(re.match(r"^[\w\.-]+@[\w\.-]+\.\w{2,}$", email))
