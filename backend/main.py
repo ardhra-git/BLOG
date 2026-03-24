@@ -149,10 +149,12 @@ def get_post(post_id: int):
 # POST /posts
 @app.post("/posts")
 def create_post(post: PostIn):
+    conn = None
     try:
         conn   = get_db()
         cursor = conn.cursor()
         print(f"DEBUG: Creating post - tag:{post.tag}, title:{post.title}")
+        
         cursor.execute(
             "INSERT INTO posts (tag, title, excerpt, body, read_time) "
             "VALUES (%s, %s, %s, %s, %s) RETURNING id",
@@ -160,13 +162,23 @@ def create_post(post: PostIn):
         )
         new_id = cursor.fetchone()[0]
         conn.commit()
-        print(f"DEBUG: Post created with ID: {new_id}")
+        print(f"DEBUG: Post created with ID: {new_id} - committed to database")
+        
+        # Verify it was saved
+        cursor.execute("SELECT COUNT(*) FROM posts;")
+        count = cursor.fetchone()[0]
+        print(f"DEBUG: Total posts in database now: {count}")
+        
         return {"status": "created", "id": new_id}
     except Exception as e:
-        print(f"DEBUG: Error creating post: {e}")
+        if conn:
+            conn.rollback()
+        print(f"ERROR: Failed to create post: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        cursor.close(); conn.close()
+        if conn:
+            cursor.close()
+            conn.close()
 
 
 # PUT /posts/{id}
