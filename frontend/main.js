@@ -117,15 +117,20 @@ async function savePost() {
   const readTime = document.getElementById('postReadTime').value.trim() || '3 min read';
   const status   = document.getElementById('drawerStatus');
 
+  console.log('DEBUG: savePost called', { id, tag, title, excerpt, body });
+
   if (!tag || !title || !excerpt || !body) {
     status.textContent = '⚠️ Please fill in all fields.';
     status.style.color = '#dc2626';
+    console.log('DEBUG: Validation failed - missing fields');
     return;
   }
 
   const payload = { tag, title, excerpt, body, read_time: readTime };
   const url     = id ? `${API}/posts/${id}` : `${API}/posts`;
   const method  = id ? 'PUT' : 'POST';
+
+  console.log('DEBUG: Sending', method, 'to', url);
 
   try {
     const res = await fetch(url, {
@@ -134,15 +139,20 @@ async function savePost() {
       body: JSON.stringify(payload)
     });
 
+    console.log('DEBUG: Response status:', res.status);
+
     if (res.ok) {
+      console.log('DEBUG: Success! Closing drawer and reloading posts');
       closeDrawer();
       loadPosts();
     } else {
       const err = await res.json();
       status.textContent = '✗ ' + (err.detail || 'Error saving post.');
       status.style.color = '#dc2626';
+      console.log('DEBUG: Server error:', err);
     }
-  } catch {
+  } catch (error) {
+    console.log('DEBUG: Catch error:', error);
     status.textContent = '✗ Cannot reach server.';
     status.style.color = '#dc2626';
   }
