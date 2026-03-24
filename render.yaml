@@ -1,11 +1,19 @@
+# render.yaml — drop this in the root of your repo (blog/)
+# Render will auto-detect it and configure everything.
+
 services:
   - type: web
-    name: blog-api
-    env: python
+    name: blog
+    runtime: python
+    rootDir: .
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port 8000
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: DATABASE_URL
-        value: postgresql://blog_zb5b_user:6T1crcUH0vuYp8vrIG9i9ERZh4UohKwL@dpg-d6ttpihj16oc73fjc2b0-a/blog_zb5b
+        fromDatabase:
+          name: blog-db
+          property: connectionString
+
+databases:
+  - name: blog-db
+    plan: free
