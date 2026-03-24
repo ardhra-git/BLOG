@@ -10,7 +10,6 @@ from pydantic import BaseModel
 import psycopg2
 import psycopg2.extras
 import re, os
-import urllib.parse as urlparse
 
 # ─── APP ──────────────────────────────────────────────────────
 app = FastAPI(title="Blog API")
@@ -31,25 +30,13 @@ def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
 # ─── DATABASE CONFIG ───────────────────────────────────────────
-DATABASE_URL = os.environ.get("DATABASE_URL")
-
-if DATABASE_URL:
-    url = urlparse.urlparse(DATABASE_URL)
-    DB_CONFIG = {
-        "host":     url.hostname,
-        "port":     url.port,
-        "dbname":   url.path[1:],
-        "user":     url.username,
-        "password": url.password,
-    }
-else:
-    DB_CONFIG = {
-        "host":     "localhost",
-        "port":     5432,
-        "dbname":   "blog_db",
-        "user":     "postgres",
-        "password": "1234567",
-    }
+DB_CONFIG = {
+    "host":     "localhost",
+    "port":     5432,
+    "dbname":   "blog_db",
+    "user":     "postgres",
+    "password": "1234567",   # change if you set a different password
+}
 
 def get_db():
     return psycopg2.connect(**DB_CONFIG)
