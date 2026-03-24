@@ -64,6 +64,13 @@ def init_db():
         conn = get_db()
         cursor = conn.cursor()
         print("DEBUG: Connected to database successfully")
+        print(f"DEBUG: DATABASE_URL being used: {DATABASE_URL[:60]}...")
+        
+        # Check current number of posts BEFORE creating tables
+        cursor.execute("SELECT COUNT(*) FROM posts;")
+        count_before = cursor.fetchone()[0]
+        print(f"DEBUG: Posts BEFORE init_db: {count_before}")
+        
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS posts (
               id         SERIAL PRIMARY KEY,
@@ -84,10 +91,10 @@ def init_db():
         """)
         conn.commit()
         
-        # Check if tables exist and count rows
+        # Check after creating tables
         cursor.execute("SELECT COUNT(*) FROM posts;")
-        post_count = cursor.fetchone()[0]
-        print(f"✓ Database tables initialized - {post_count} posts in database")
+        count_after = cursor.fetchone()[0]
+        print(f"✓ Database tables initialized - {count_after} posts in database")
         
         cursor.close()
         conn.close()
@@ -120,8 +127,11 @@ def get_posts():
             "SELECT id, tag, title, excerpt, read_time, created_at "
             "FROM posts ORDER BY created_at DESC"
         )
-        return {"posts": cursor.fetchall()}
+        posts = cursor.fetchall()
+        print(f"DEBUG: GET /posts returning {len(posts)} posts from database")
+        return {"posts": posts}
     except Exception as e:
+        print(f"ERROR in GET /posts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close(); conn.close()
