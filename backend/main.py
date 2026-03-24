@@ -1,3 +1,6 @@
+# backend/main.py
+# Local: python -m uvicorn main:app --reload
+# Render: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 
 from fastapi import FastAPI, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,38 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import psycopg2
 import psycopg2.extras
-import re, os, sys
-
-# ─── DATABASE CONFIG ───────────────────────────────────────────
-# Use DATABASE_URL for Render deployment, fallback to local for development
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-print(f"DEBUG: DATABASE_URL is set: {bool(DATABASE_URL)}")
-if DATABASE_URL:
-    print(f"DEBUG: Using Render database: {DATABASE_URL[:50]}...")
-else:
-    print("DEBUG: Using local database")
-
-if DATABASE_URL:
-    # Render deployment - use connection string
-    def get_db():
-        try:
-            conn = psycopg2.connect(DATABASE_URL)
-            return conn
-        except Exception as e:
-            print(f"ERROR: Failed to connect to database: {e}")
-            sys.exit(1)
-else:
-    # Local development
-    DB_CONFIG = {
-        "host":     "localhost",
-        "port":     5432,
-        "dbname":   "blog_db",
-        "user":     "postgres",
-        "password": "1234567",
-    }
-    def get_db():
-        return psycopg2.connect(**DB_CONFIG)
+import re, os
 
 # ─── APP ──────────────────────────────────────────────────────
 app = FastAPI(title="Blog API")
@@ -49,60 +21,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve frontend
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+# Serve frontend — robust absolute path, works on Render & locally
+BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 @app.get("/")
 def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-# ─── INITIALIZE TABLES ─────────────────────────────────────────
-def init_db():
-    """Create tables if they don't exist"""
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        print("DEBUG: Connected to database successfully")
-        print(f"DEBUG: DATABASE_URL being used: {DATABASE_URL[:60]}...")
-        
-        # Check current number of posts BEFORE creating tables
-        cursor.execute("SELECT COUNT(*) FROM posts;")
-        count_before = cursor.fetchone()[0]
-        print(f"DEBUG: Posts BEFORE init_db: {count_before}")
-        
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS posts (
-              id         SERIAL PRIMARY KEY,
-              tag        VARCHAR(50)  NOT NULL,
-              title      VARCHAR(255) NOT NULL,
-              excerpt    TEXT         NOT NULL,
-              body       TEXT         NOT NULL,
-              read_time  VARCHAR(20)  DEFAULT '3 min read',
-              created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-            );
-            CREATE TABLE IF NOT EXISTS contacts (
-              id           SERIAL PRIMARY KEY,
-              name         VARCHAR(100) NOT NULL,
-              email        VARCHAR(150) NOT NULL,
-              message      TEXT         NOT NULL,
-              submitted_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        conn.commit()
-        
-        # Check after creating tables
-        cursor.execute("SELECT COUNT(*) FROM posts;")
-        count_after = cursor.fetchone()[0]
-        print(f"✓ Database tables initialized - {count_after} posts in database")
-        
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        print(f"✗ Database init error: {e}")
+# ─── DATABASE ─────────────────────────────────────────────────
+# On Render: set DATABASE_URL = Internal Database URL from Render PostgreSQL.
+# Locally:   export DATABASE_URL=postgresql://postgres:1234567@localhost:5432/blog_db
 
-# Initialize tables on startup
-init_db()
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+def get_db():
+    if DATABASE_URL:
+        return psycopg2.connect(DATABASE_URL)
+    # Local fallback using individual env vars or defaults
+    return psycopg2.connect(
+        host     = os.environ.get("DB_HOST",     "localhost"),
+        port     = int(os.environ.get("DB_PORT", "5432")),
+        dbname   = os.environ.get("DB_NAME",     "blog_db"),
+        user     = os.environ.get("DB_USER",     "postgres"),
+        password = os.environ.get("DB_PASSWORD", "1234567"),
+    )
 
 def is_valid_email(email: str) -> bool:
     return bool(re.match(r"^[\w\.-]+@[\w\.-]+\.\w{2,}$", email))
@@ -117,7 +61,6 @@ class PostIn(BaseModel):
 
 # ─── ROUTES ───────────────────────────────────────────────────
 
-# GET /posts
 @app.get("/posts")
 def get_posts():
     try:
@@ -127,17 +70,13 @@ def get_posts():
             "SELECT id, tag, title, excerpt, read_time, created_at "
             "FROM posts ORDER BY created_at DESC"
         )
-        posts = cursor.fetchall()
-        print(f"DEBUG: GET /posts returning {len(posts)} posts from database")
-        return {"posts": posts}
+        return {"posts": cursor.fetchall()}
     except Exception as e:
-        print(f"ERROR in GET /posts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close(); conn.close()
 
 
-# GET /posts/{id}
 @app.get("/posts/{post_id}")
 def get_post(post_id: int):
     try:
@@ -156,15 +95,11 @@ def get_post(post_id: int):
         cursor.close(); conn.close()
 
 
-# POST /posts
 @app.post("/posts")
 def create_post(post: PostIn):
-    conn = None
     try:
         conn   = get_db()
         cursor = conn.cursor()
-        print(f"DEBUG: Creating post - tag:{post.tag}, title:{post.title}")
-        
         cursor.execute(
             "INSERT INTO posts (tag, title, excerpt, body, read_time) "
             "VALUES (%s, %s, %s, %s, %s) RETURNING id",
@@ -172,26 +107,13 @@ def create_post(post: PostIn):
         )
         new_id = cursor.fetchone()[0]
         conn.commit()
-        print(f"DEBUG: Post created with ID: {new_id} - committed to database")
-        
-        # Verify it was saved
-        cursor.execute("SELECT COUNT(*) FROM posts;")
-        count = cursor.fetchone()[0]
-        print(f"DEBUG: Total posts in database now: {count}")
-        
         return {"status": "created", "id": new_id}
     except Exception as e:
-        if conn:
-            conn.rollback()
-        print(f"ERROR: Failed to create post: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        if conn:
-            cursor.close()
-            conn.close()
+        cursor.close(); conn.close()
 
 
-# PUT /posts/{id}
 @app.put("/posts/{post_id}")
 def update_post(post_id: int, post: PostIn):
     try:
@@ -214,7 +136,6 @@ def update_post(post_id: int, post: PostIn):
         cursor.close(); conn.close()
 
 
-# DELETE /posts/{id}
 @app.delete("/posts/{post_id}")
 def delete_post(post_id: int):
     try:
@@ -233,7 +154,6 @@ def delete_post(post_id: int):
         cursor.close(); conn.close()
 
 
-# POST /contact
 @app.post("/contact")
 def submit_contact(
     name:    str = Form(...),
