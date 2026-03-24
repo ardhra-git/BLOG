@@ -6,7 +6,38 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import psycopg2
 import psycopg2.extras
-import re, os
+import re, os, sys
+
+# ─── DATABASE CONFIG ───────────────────────────────────────────
+# Use DATABASE_URL for Render deployment, fallback to local for development
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+print(f"DEBUG: DATABASE_URL is set: {bool(DATABASE_URL)}")
+if DATABASE_URL:
+    print(f"DEBUG: Using Render database: {DATABASE_URL[:50]}...")
+else:
+    print("DEBUG: Using local database")
+
+if DATABASE_URL:
+    # Render deployment - use connection string
+    def get_db():
+        try:
+            conn = psycopg2.connect(DATABASE_URL)
+            return conn
+        except Exception as e:
+            print(f"ERROR: Failed to connect to database: {e}")
+            sys.exit(1)
+else:
+    # Local development
+    DB_CONFIG = {
+        "host":     "localhost",
+        "port":     5432,
+        "dbname":   "blog_db",
+        "user":     "postgres",
+        "password": "1234567",
+    }
+    def get_db():
+        return psycopg2.connect(**DB_CONFIG)
 
 # ─── APP ──────────────────────────────────────────────────────
 app = FastAPI(title="Blog API")
@@ -26,32 +57,13 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 def serve_index():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-# ─── DATABASE CONFIG ───────────────────────────────────────────
-# Use DATABASE_URL for Render deployment, fallback to local for development
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-if DATABASE_URL:
-    # Render deployment - use connection string
-    def get_db():
-        return psycopg2.connect(DATABASE_URL)
-else:
-    # Local development
-    DB_CONFIG = {
-        "host":     "localhost",
-        "port":     5432,
-        "dbname":   "blog_db",
-        "user":     "postgres",
-        "password": "1234567",
-    }
-    def get_db():
-        return psycopg2.connect(**DB_CONFIG)
-
 # ─── INITIALIZE TABLES ─────────────────────────────────────────
 def init_db():
     """Create tables if they don't exist"""
     try:
         conn = get_db()
         cursor = conn.cursor()
+        print("DEBUG: Connected to database successfully")
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS posts (
               id         SERIAL PRIMARY KEY,
@@ -71,11 +83,16 @@ def init_db():
             );
         """)
         conn.commit()
+        
+        # Check if tables exist and count rows
+        cursor.execute("SELECT COUNT(*) FROM posts;")
+        post_count = cursor.fetchone()[0]
+        print(f"✓ Database tables initialized - {post_count} posts in database")
+        
         cursor.close()
         conn.close()
-        print("✓ Database tables initialized")
     except Exception as e:
-        print(f"Database init warning: {e}")
+        print(f"✗ Database init error: {e}")
 
 # Initialize tables on startup
 init_db()
